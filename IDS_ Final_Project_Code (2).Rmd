@@ -1,0 +1,267 @@
+---
+title: "IDS Project"
+output:
+  pdf_document: default
+  html_document:
+    df_print: paged
+  word_document: default
+---
+To analyze the data, firstly we have to retrieve data from the link. So, we used the read.csv function in the tidyverse library. This function read and retrieves the data from the link and store it as data set form in a dataset named vector.
+
+```{r setup, include=FALSE}
+
+library(tidyverse)
+dataset <- read.csv('https://intro-datascience.s3.us-east-2.amazonaws.com/HMO_data.csv')
+# Storing the data from URL into data frame
+```
+
+Now, the following functions allows us to check the variables and their statistical functions. By using those functions we get to know that there are 14 columns and 7582 rows in the dataset. The whole dataset gives information about the expenses of a person with different habits.In this dataset there are int, num and chr data types variables.
+
+```{r cars}
+str(dataset)
+summary(dataset)
+head(dataset,20)
+# Getting to know the dataset
+```
+
+Once we are done with the data exploration then the next step is to check if there are any empty cells in the variables.If there are empty cells then we have to clean the data. The following function will give output of number of cells that are empty in the mentioned variable.The results shows that there 78 and 80 empty cells in the bmi and hypertension variables. 
+
+```{r pressure, echo=FALSE}
+# Data Cleaning
+# Finding N/A values
+sum(is.na(dataset$bmi))
+sum(is.na(dataset$X))
+sum(is.na(dataset$age))
+sum(is.na(dataset$children))
+sum(is.na(dataset$hypertension))
+sum(is.na(dataset$cost))
+```
+Now, we have to clean those empty cells in the bmi and hypertension variables. To do the cleaning we choose to use na_interpolation function in the imputeTS library.This function will clean data in the mentioned variable. Again, the function used is.na() function  to verify whether the na_interpolation is worked is or not and the result shows there are no empty cells in the variables. 
+
+
+
+```{r}
+# Dealing with N/A values
+library(imputeTS)
+dataset$bmi <- na_interpolation(dataset$bmi)
+dataset$hypertension <- na_interpolation(dataset$hypertension)
+sum(is.na(dataset$bmi))
+sum(is.na(dataset$hypertension))
+sum(is.na(dataset$cost))
+```
+Firstly we stored the dataset in the datalm and then converted all the chr data type into the factor data type so that it will be best to find out which varibles will be affecting the expenses of a person. 
+
+```{r}
+# Converting data into factor types
+datalm <- dataset
+datalm$smoker <- as.factor(datalm$smoker)
+datalm$location <- as.factor(datalm$location)
+datalm$location_type <- as.factor(datalm$location_type)
+datalm$education_level <- as.factor(datalm$education_level)
+datalm$yearly_physical <- as.factor(datalm$yearly_physical)
+datalm$exercise <- as.factor(datalm$exercise)
+datalm$married <- as.factor(datalm$married)
+datalm$gender <- as.factor(datalm$gender)
+```
+
+This following command is to verify the data types in the datalm dataset.
+```{r}
+str(datalm)
+# Understanding the datalm dataset
+```
+Our goal is to determine what are the key variables that affects the most in the expenses of a person and to do that we have to find the cost margin to determine whether a person is considered as expensive or not. Expensive means costliest so the we used max  function in the cost variable. Also summary function on the cost to check the mean and quartiles. the results shows a big difference between the 3rd quartiles and  maximum in the cost variable.
+
+```{r}
+dataset[which.max(dataset$cost), ]
+dataset[which.min(dataset$cost), ]
+dataset[which.max(dataset$bmi), ]
+dataset[which.min(dataset$bmi), ]
+summary(dataset$cost)
+# Determining the minimum and maximums of cost and bmi
+```
+To get more clarity on the cost variable, we created histogram graph and the resulting graph is a right-skewed graph which means most of the bars are on the left side of the graph. these most frequent bars are in range of between 4000 to 5000 and the graphs there are out-liers with only frequency of 1 so we choose mean of the cost variable as a margin cost to determine whether a the expenses considered as are expensive are not.
+
+```{r}
+library(ggplot2)
+ggplot(dataset)+aes(cost)+geom_histogram(fill='cyan', col='black')
+# Histogram of cost variable
+# It is a right-skewed plot
+```
+This is a histogram of a bmi variable and the resulting graph is bell-curve shaped which means most of the frequent bmi values are situated around the median of the variable, the median is 30.50. As per standard chart of bmi, if the bmi is greater than 30 then that person is suffering with obesity. 
+
+```{r}
+ggplot(dataset)+aes(bmi)+geom_histogram(fill='red', col='black')
+# Histogram of BMI variable
+# It is a bell-curve plot
+```
+Now we created scatter plots and box-plots to understand the relationships the between the variables. 
+
+```{r}
+
+ggplot(dataset)+aes(age,cost)+geom_point(col='darkred')+geom_smooth(method="lm", se=TRUE)
+# Scatter plot of cost and age
+
+ggplot(dataset)+aes(bmi,cost)+geom_point(col='darkgreen')+geom_smooth(method="lm", se=TRUE)
+# Scatter plot of cost and bmi
+
+ggplot(dataset)+aes(smoker,cost,color=smoker)+geom_boxplot()+scale_color_manual(values = c("orange","skyblue"))
+# Boxplot of cost and smoker
+
+ggplot(dataset)+aes(exercise,cost,color=smoker)+geom_boxplot()
+# Boxplot of cost and exercise
+
+ggplot(dataset)+ aes(hypertension,cost) +geom_point(col='purple')
+# Scatter plot of cost and hypertension
+
+```
+Once we have decided the mean of cost is the margin for the expensive but there are other variables which might affect expenses so we used group by function in the tidyverse library. The results show that the variables aren't making any big difference between the mean of the cost.
+
+```{r}
+unique(dataset$location)
+mean(dataset$cost)
+
+# created a new column called agecategory based on age range to find  the relatinoship between the 
+#vribles
+dataset$agecategory <- ifelse(dataset$age %in% 15:19, "Teenagers", ifelse(dataset$age %in% 20:34, "young_adults",
+                                     ifelse(dataset$age %in% 35:54, "Middle_aged_adults",
+                                            ifelse(dataset$age >= 55, "Senior_citizens", "Unknown"))))
+library(tidyverse)
+dataset %>% group_by(location) %>% summarize(cost=mean(cost))
+dataset %>% group_by(education_level) %>% summarize(cost=mean(cost))
+dataset %>% group_by(married) %>% summarize(cost=mean(cost))
+dataset %>% group_by(agecategory) %>% summarize(cost=mean(cost))
+
+```
+Now , we created an Expensive_type variable where it has "Expensive" if the cost is greater than the mean of the cost else "Not-Expensive" in the cells.
+
+```{r}
+dataset$Expensive_type <- ifelse(dataset$cost > mean(dataset$cost), "Expensive", "Not-Expensive")
+table(dataset$Expensive_type)
+# Creation of expensive and Not-expensive
+```
+Now we created scatter plots with different variables to analyze  which are key variable to determine the expenses for the health. we used ggplot function in the ggplot2 library. 
+
+```{r}
+library(ggplot2)
+ggplot(dataset, aes(x=bmi,y=cost)) +geom_point(aes(shape=smoker, color=agecategory))+ geom_smooth(se=FALSE)
+ggplot(dataset, aes(x=bmi)) +geom_point(aes(y=cost ,shape=married, color=agecategory))
+ggplot(dataset, aes(x=bmi)) +geom_point(aes(y=cost ,shape=exercise, color=agecategory))
+ggplot(dataset, aes(x=bmi)) +geom_point(aes(y=cost ,shape=education_level, color=agecategory))
+ggplot(dataset, aes(x=age)) +geom_point(aes(y=bmi ,shape=yearly_physical, color=agecategory))
+ggplot(dataset, aes(x=age)) +geom_point(aes(y=bmi ,shape=smoker, color=children))
+
+
+```
+
+To get more statistical information between the cost and other variables in the dataset we choose the linear regression model. In this model we used the datalm dataset where there are no chr data types.The resulting linear model is significant due its p-value is less then 0.05 and its r-squared value is 57.31%. By looking at the p-value of the variables we can determine which values are significant and these variable will be considered to the determine the expenses in the further models we used. 
+
+```{r}
+#LM - model ##datalm 
+lmout <- lm(cost ~ age+bmi+hypertension+smoker+location+exercise, data = datalm)
+
+summary(lmout)
+
+```
+
+Once the linear model showed which are the key variables that are affecting the cost. We can train the svm and tree bag model to predict the expensive type according to the independent variables. For the models we have to create a two sets . One of them will be used to train the model and the another one is used to test model. we used the caret library for the svm model and createDataPartition function is used to separate the dataset with p=0.62.
+
+```{r}
+dataset$Expensive_type <- as.factor(dataset$Expensive_type)
+###### using datalm dataframe 
+datalm$Expensive_type <- dataset$Expensive_type
+library(caret)
+# SVM MODEL
+set.seed(6) 
+trainList <- createDataPartition(y=datalm$Expensive_type,p=.62,list=FALSE)
+trainSet <- datalm[trainList,]
+testSet <- datalm[-trainList,]
+svmmodel <- train(Expensive_type~age+bmi+hypertension+smoker+location+exercise , data = trainSet, method= "svmRadial",preProc=c("center","scale"))
+```
+The following code will test the svm model using testSet.
+
+```{r}
+svmpredout <- predict(svmmodel,newdata=testSet)
+```
+we created the confusion Matrix from the testing results so that we can how much accuracy and sensitivity this model has. 
+
+```{r}
+confMatrix <- table(svmpredout,testSet$Expensive_type)
+confMatrix
+```
+
+
+```{r}
+errorRate <- (sum(confMatrix) - sum(diag(confMatrix)))/sum(confMatrix)
+errorRate
+accuracy <- 1-errorRate
+accuracy
+```
+
+This confusionMatrix function will gives use the accuracy without any calculation. 
+```{r}
+confusionMatrix(svmpredout,testSet$Expensive_type)
+# the accuracy is 84.51% and sensitivity is 62.95%
+```
+We used the rpart and e1071 library for thr tree bag model. Similar to the previous model we used two different sets. One of it is to train the model and the other is to test the model.  
+
+```{r}
+
+###tree bag model
+library(rpart)
+library(e1071)
+tree <- train(Expensive_type~age+bmi+hypertension+smoker+location+exercise , data = trainSet, method="treebag",preProc=c("center","scale"))
+treerpart <- rpart(Expensive_type~age+bmi+hypertension+smoker+location+exercise , data = trainSet, method="class")
+library(rpart.plot)
+rpart.plot(treerpart)
+
+```
+```{r}
+# Checking accuracy with confusion matrix
+treePred <- predict(tree,newdata=testSet)
+confusion <- table(treePred,testSet$Expensive_type)
+confMatrix <- table(treePred,testSet$Expensive_type)
+confMatrix
+errorRate <- (sum(confMatrix) - sum(diag(confMatrix)))/sum(confMatrix)
+errorRate
+accuracy <- 1-errorRate
+accuracy
+confusionMatrix(treePred,testSet$Expensive_type)
+# the accuracy is 83.85% and sensitivity is 69.98%
+```
+We also thought to run the data through transaction model to check which type of variables have the most effect on the expensive type. So, we converted the dataset into transaction form and stored it in datasetr vector. All the required functions are stored in the arules and rulesviz library. We used the itemFrequencyPlot and itemFrequency to get to know all the transactions in the datasetr vecotr.
+
+```{r}
+#### transactions 
+library(arules);library(arulesViz)
+datasetr <- as(dataset[,c(-1 -13)],"transactions")
+
+itemFrequencyPlot(datasetr)
+ itemFrequency(datasetr)
+```
+
+The apriori function with the supp = 0.08, conf = 0.8, lhs will be defulath which mean everything else except the rhs and rhs is set to "Expensive_type=Expensive". By running this function we will get the all the transactions with only RHS in "Expensive_type=Expensive". To look at all the transactions we used insect  
+
+```{r}
+##datatset - all
+####### important 
+rulesetb <- apriori(datasetr, parameter = list(supp = 0.08, conf = 0.8), appearance = list(default="lhs", rhs = "Expensive_type=Expensive"))
+
+inspect(rulesetb)
+
+```
+```{r}
+##dataset - smoker, yearly_physical,exercise,bmi,hypertension
+ruleseta <- apriori(datasetr, parameter = list(supp = 0.05, conf = 0.7), appearance = list(lhs = c("smoker=no", "smoker=yes", "yearly_physical=Yes", "yearly_physical=No","exercise=Active","exercise=Not-Active","bmi=[16,28)","bmi=[28,33.1)","bmi=[33.1,53.1]","hypertension=[0,1]"), rhs = "Expensive_type=Expensive"))
+
+inspect(ruleseta)
+
+```
+
+
+```{r}
+##datatset - childrena,agecategory,married,educationlevel
+rulesetb <- apriori(datasetr, parameter = list(supp = 0.005, conf = 0.55), appearance = list(lhs = c("children=[0,2)", "children=[2,5]", "agecategory=Senior_citizens", "agecategory=Teenagers","agecategory=Middle_aged_adults","agecategory=young_adults","married=Married", "married=Not_Married","education_level=Bachelor","education_level=Master","education_level=PhD","education_level=No College Degree"), rhs = "Expensive_type=Expensive"))
+
+inspect(rulesetb)
+
+```
